@@ -1,0 +1,14 @@
+packages:
+  "framer-motion": "For elegant page transitions and interactive animations"
+  "date-fns": "For formatting progress and recording dates"
+  "recharts": "For displaying student progress charts"
+  "@hookform/resolvers": "Zod validation with react-hook-form"
+  "react-hook-form": "Form state management"
+  "zod": "Schema validation"
+images:
+  - path: "artifacts/quran-app/public/images/islamic-bg.png"
+    description: "Subtle, minimalist Islamic geometric pattern background, light emerald green and white, extremely low contrast, suitable for a professional web app background"
+    aspect_ratio: "16:9"
+notes:
+  - "Assuming Replit Auth is correctly configured."
+  - "Requires standard shadcn components (button, card, dialog, input, label, select, table, badge, toaster) from base stack."

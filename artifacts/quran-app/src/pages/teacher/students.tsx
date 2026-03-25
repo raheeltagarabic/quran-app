@@ -1,0 +1,187 @@
+import { useState } from "react";
+import { useListStudents, useCreateStudent, useUpdateStudent, useDeleteStudent, useListUsers } from "@workspace/api-client-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useQueryClient } from "@tanstack/react-query";
+import { Plus, Edit2, Trash2, Search } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+export default function TeacherStudents() {
+  const { data: students, isLoading } = useListStudents();
+  const { data: users } = useListUsers();
+  const [search, setSearch] = useState("");
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const createStudent = useCreateStudent({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/students"] });
+        setIsAddOpen(false);
+        toast({ title: "Student created successfully" });
+      }
+    }
+  });
+
+  const deleteStudent = useDeleteStudent({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/students"] });
+        toast({ title: "Student deleted" });
+      }
+    }
+  });
+
+  const filteredStudents = students?.filter(s => 
+    s.user?.firstName?.toLowerCase().includes(search.toLowerCase()) || 
+    s.user?.lastName?.toLowerCase().includes(search.toLowerCase())
+  ) || [];
+
+  const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    createStudent.mutate({
+      data: {
+        userId: fd.get("userId") as string,
+        scheduleType: fd.get("scheduleType") as string,
+        currentLesson: Number(fd.get("currentLesson")),
+        notes: fd.get("notes") as string,
+      }
+    });
+  };
+
+  return (
+    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-display">Manage Students</h1>
+          <p className="text-muted-foreground mt-1">Add, update, or remove student profiles.</p>
+        </div>
+        
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogTrigger asChild>
+            <Button className="rounded-xl shadow-lg shadow-primary/20">
+              <Plus className="mr-2 h-4 w-4" /> Add Student
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md rounded-2xl">
+            <DialogHeader>
+              <DialogTitle className="font-display text-2xl">Add New Student</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleCreate} className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Select User</Label>
+                <Select name="userId" required>
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue placeholder="Choose a user account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users?.filter(u => u.role !== 'teacher').map(u => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.firstName} {u.lastName} ({u.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Schedule Type</Label>
+                <Select name="scheduleType" defaultValue="A">
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="A">Schedule A (Qaida: Mon/Tue/Wed)</SelectItem>
+                    <SelectItem value="B">Schedule B (Qaida: Thu/Fri/Sat)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Current Lesson</Label>
+                <Input type="number" name="currentLesson" defaultValue={1} min={1} required className="rounded-xl" />
+              </div>
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Textarea name="notes" placeholder="Initial assessment notes..." className="rounded-xl resize-none" />
+              </div>
+              <div className="pt-4 flex justify-end">
+                <Button type="submit" disabled={createStudent.isPending} className="rounded-xl">
+                  {createStudent.isPending ? "Saving..." : "Save Student"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="bg-card rounded-2xl shadow-xl shadow-black/5 border border-border/50 overflow-hidden">
+        <div className="p-4 border-b border-border/50 bg-muted/20 flex items-center gap-2">
+          <Search className="w-5 h-5 text-muted-foreground ml-2" />
+          <Input 
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search students..." 
+            className="border-none bg-transparent shadow-none focus-visible:ring-0 px-2 font-medium"
+          />
+        </div>
+        
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-muted/30">
+              <TableRow>
+                <TableHead>Student Name</TableHead>
+                <TableHead>Schedule</TableHead>
+                <TableHead>Lesson</TableHead>
+                <TableHead>Notes</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow><TableCell colSpan={5} className="text-center py-8">Loading students...</TableCell></TableRow>
+              ) : filteredStudents.length === 0 ? (
+                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No students found.</TableCell></TableRow>
+              ) : (
+                filteredStudents.map((student) => (
+                  <TableRow key={student.id} className="group">
+                    <TableCell className="font-medium">{student.user?.firstName} {student.user?.lastName}</TableCell>
+                    <TableCell>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary">
+                        Type {student.scheduleType}
+                      </span>
+                    </TableCell>
+                    <TableCell>Page {student.currentLesson}</TableCell>
+                    <TableCell className="max-w-[200px] truncate text-muted-foreground">{student.notes || "-"}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => {
+                            if (confirm("Are you sure you want to delete this student?")) {
+                              deleteStudent.mutate({ id: student.id });
+                            }
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    </div>
+  );
+}

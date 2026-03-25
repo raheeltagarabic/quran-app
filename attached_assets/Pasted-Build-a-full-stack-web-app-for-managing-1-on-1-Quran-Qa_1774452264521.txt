@@ -1,0 +1,159 @@
+Build a full-stack web app for managing 1-on-1 Quran Qaida classes with schedule-based weekly logic.
+
+Core Model:
+
+- This is a 1-on-1 teaching system (NOT group classes)
+- Each student is assigned a "schedule_type"
+- The schedule_type determines which days are Qaida class days and which days are Test days
+
+---
+
+Schedule Types:
+
+Schedule A:
+
+- Monday, Tuesday, Wednesday → Qaida classes
+- Thursday, Friday → Islamic Basics Test
+
+Schedule B:
+
+- Thursday, Friday, Saturday → Qaida classes
+- Sunday, Monday → Islamic Basics Test
+
+---
+
+1. Authentication:
+
+- Login system (Teacher and Student roles)
+
+---
+
+2. Student Data:
+
+Each student must have:
+
+- name
+- schedule_type ("A" or "B")
+- current_lesson
+- notes
+
+---
+
+3. Dynamic Mode System (IMPORTANT):
+
+The app must:
+
+- Detect current day
+- Check student's schedule_type
+- Automatically show:
+
+Qaida Mode:
+
+- Show lesson image
+- Join Zoom button
+- Record recitation
+- Show teacher notes
+
+Test Mode:
+
+- Show Islamic Basics topics
+- Start Test button
+- Show score after test
+
+---
+
+4. Teacher Dashboard:
+
+- View all students
+- Add/edit students
+- Assign schedule_type (A or B)
+- Set current lesson
+- Add notes
+- Listen to recordings
+- Assign next lesson
+
+Islamic Basics:
+
+- Create topics:
+  - Kalma
+  - Namaz
+  - Wudu
+  - Ghusl
+- Add questions:
+  - MCQ
+  - True/False
+
+---
+
+5. Lesson System:
+
+- Use static images:
+  /lessons/page_1.png
+  /lessons/page_2.png
+
+---
+
+6. Audio Recording:
+
+- Use MediaRecorder API
+- Record and upload audio
+- Store per student
+
+---
+
+7. Test Engine:
+
+- MCQs and True/False
+- Auto evaluation
+- Store results:
+  - student_id
+  - topic
+  - score
+  - date
+
+---
+
+8. Database Structure:
+
+- users (id, name, role)
+- students (user_id, schedule_type, current_lesson, notes)
+- recordings (student_id, lesson, audio_url)
+- topics (id, title, content)
+- questions (topic_id, question, options, correct_answer)
+- results (student_id, topic_id, score, date)
+
+---
+
+9. UI Requirements:
+
+- Simple and clean dashboard
+- Show clear label:
+  - "Qaida Mode" OR "Test Mode"
+- Sidebar:
+  - Qaida
+  - Tests
+  - Progress
+
+---
+
+10. Mode Logic (VERY IMPORTANT):
+
+Use JavaScript to detect day:
+
+const day = new Date().getDay(); // 0=Sunday, 1=Monday...
+
+If schedule_type = "A":
+
+- Qaida → [1,2,3]
+- Test → [4,5]
+
+If schedule_type = "B":
+
+- Qaida → [4,5,6]
+- Test → [0,1]
+
+---
+
+Goal:
+
+Build a simple but structured system where the teacher conducts 1-on-1 Qaida classes and the app automatically switches between Qaida Mode and Test Mode based on each student's assigned schedule.
