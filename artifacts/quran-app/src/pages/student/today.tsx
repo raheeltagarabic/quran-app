@@ -119,6 +119,7 @@ export default function StudentToday() {
       {/* Mode Content */}
       {mode === "qaida" && <QaidaView profile={profile} />}
       {mode === "test"  && <TestModeView studentId={profile.id} />}
+      {mode === "off"   && <RestDayView profile={profile} />}
     </div>
   );
 }
@@ -257,6 +258,98 @@ function QaidaView({ profile }: { profile: any }) {
         </Card>
 
         {/* Teacher Notes */}
+        {profile.notes && (
+          <Card className="rounded-3xl shadow-lg border-border/50 bg-secondary/5">
+            <CardContent className="p-6">
+              <h4 className="font-display font-bold text-foreground mb-2">Teacher Notes</h4>
+              <p className="text-sm text-muted-foreground leading-relaxed">{profile.notes}</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Rest Day View ───────────────────────────────────────────────────────────
+
+function RestDayView({ profile }: { profile: any }) {
+  const [imgError, setImgError] = useState(false);
+  const [practicing, setPracticing] = useState(false);
+
+  const lessonImgSrc = imgError ? null : `/lessons/page_${profile.currentLesson}.png`;
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Lesson Image */}
+      <Card className="md:col-span-2 rounded-3xl shadow-lg border-border/50 overflow-hidden">
+        <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="font-display text-xl">Lesson {profile.currentLesson}</CardTitle>
+            <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30 bg-muted/20">
+              <BookOpen className="w-3 h-3 mr-1" /> Revision
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="aspect-[3/4] bg-muted/30 rounded-2xl border border-dashed border-border/60 flex items-center justify-center relative overflow-hidden">
+            {lessonImgSrc ? (
+              <img
+                src={lessonImgSrc}
+                alt={`Qaida Page ${profile.currentLesson}`}
+                className="absolute inset-0 w-full h-full object-contain"
+                onError={() => setImgError(true)}
+              />
+            ) : (
+              <div className="text-center p-8">
+                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <BookOpen className="w-10 h-10 text-primary" />
+                </div>
+                <p className="font-display text-2xl text-primary font-bold mb-1">Page {profile.currentLesson}</p>
+                <p className="text-sm text-muted-foreground">Open your physical Qaida book to this page</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Side Panel */}
+      <div className="space-y-6">
+        <Card className="rounded-3xl shadow-lg border-border/50">
+          <CardContent className="p-8 text-center space-y-4">
+            <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+              <BookOpen className="w-7 h-7 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-display text-xl font-bold mb-1">Revise Your Lesson</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                It's a rest day — no live class or test. Use this time to go over Lesson {profile.currentLesson} on your own.
+              </p>
+            </div>
+            <Button
+              size="lg"
+              className="w-full rounded-xl"
+              onClick={() => setPracticing(true)}
+            >
+              <BookOpen className="w-4 h-4 mr-2" /> Practice Lesson
+            </Button>
+          </CardContent>
+        </Card>
+
+        {practicing && (
+          <Card className="rounded-3xl shadow-lg border-primary/30 bg-primary/5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <CardContent className="p-6 space-y-3">
+              <h4 className="font-display font-bold text-foreground">Practice Tips</h4>
+              <ul className="text-sm text-muted-foreground space-y-2 leading-relaxed list-none">
+                <li className="flex items-start gap-2"><span className="text-primary mt-0.5">•</span>Read each letter aloud slowly</li>
+                <li className="flex items-start gap-2"><span className="text-primary mt-0.5">•</span>Repeat each line 3 times</li>
+                <li className="flex items-start gap-2"><span className="text-primary mt-0.5">•</span>Focus on pronunciation of each Makharij</li>
+                <li className="flex items-start gap-2"><span className="text-primary mt-0.5">•</span>Review any rules taught by your teacher</li>
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+
         {profile.notes && (
           <Card className="rounded-3xl shadow-lg border-border/50 bg-secondary/5">
             <CardContent className="p-6">
