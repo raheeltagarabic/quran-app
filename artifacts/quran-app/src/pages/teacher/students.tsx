@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useListStudents, useCreateStudent, useUpdateStudent, useDeleteStudent, useListUsers } from "@workspace/api-client-react";
+import { useListStudents, useCreateStudent, useDeleteStudent, useListUsers } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -8,17 +8,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Edit2, Trash2, Search } from "lucide-react";
+import { Plus, Trash2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function TeacherStudents() {
-  const { data: students, isLoading } = useListStudents();
+  const { data: students, isLoading, error } = useListStudents();
   const { data: users } = useListUsers();
   const [search, setSearch] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  console.log("students:", students);
 
   const createStudent = useCreateStudent({
     mutation: {
@@ -39,10 +41,19 @@ export default function TeacherStudents() {
     }
   });
 
-  const filteredStudents = students?.filter(s => 
-    s.user?.firstName?.toLowerCase().includes(search.toLowerCase()) || 
-    s.user?.lastName?.toLowerCase().includes(search.toLowerCase())
-  ) || [];
+  const getDisplayName = (student: NonNullable<typeof students>[number]) => {
+    const first = student.user?.firstName ?? "";
+    const last = student.user?.lastName ?? "";
+    const full = `${first} ${last}`.trim();
+    return full || student.user?.email || `Student #${student.id}`;
+  };
+
+  const filteredStudents = (students ?? []).filter(s => {
+    if (!search) return true;
+    const name = getDisplayName(s).toLowerCase();
+    const email = (s.user?.email ?? "").toLowerCase();
+    return name.includes(search.toLowerCase()) || email.includes(search.toLowerCase());
+  });
 
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -83,9 +94,11 @@ export default function TeacherStudents() {
                     <SelectValue placeholder="Choose a user account" />
                   </SelectTrigger>
                   <SelectContent>
-                    {users?.filter(u => u.role !== 'teacher').map(u => (
+                    {(users ?? []).filter(u => u.role !== 'teacher').map(u => (
                       <SelectItem key={u.id} value={u.id}>
-                        {u.firstName} {u.lastName} ({u.email})
+                        {u.firstName && u.lastName
+                          ? `${u.firstName} ${u.lastName} (${u.email})`
+                          : u.email ?? u.id}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -121,13 +134,19 @@ export default function TeacherStudents() {
         </Dialog>
       </div>
 
+      {error && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          Failed to load students: {(error as Error).message}
+        </div>
+      )}
+
       <div className="bg-card rounded-2xl shadow-xl shadow-black/5 border border-border/50 overflow-hidden">
         <div className="p-4 border-b border-border/50 bg-muted/20 flex items-center gap-2">
           <Search className="w-5 h-5 text-muted-foreground ml-2" />
           <Input 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search students..." 
+            placeholder="Search by name or email..." 
             className="border-none bg-transparent shadow-none focus-visible:ring-0 px-2 font-medium"
           />
         </div>
@@ -136,7 +155,8 @@ export default function TeacherStudents() {
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow>
-                <TableHead>Student Name</TableHead>
+                <TableHead>Student</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Schedule</TableHead>
                 <TableHead>Lesson</TableHead>
                 <TableHead>Notes</TableHead>
@@ -145,20 +165,23 @@ export default function TeacherStudents() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-8">Loading students...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center py-8">Loading students...</TableCell></TableRow>
               ) : filteredStudents.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No students found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  {search ? "No students match your search." : "No students yet. Click \"Add Student\" to get started."}
+                </TableCell></TableRow>
               ) : (
                 filteredStudents.map((student) => (
                   <TableRow key={student.id} className="group">
-                    <TableCell className="font-medium">{student.user?.firstName} {student.user?.lastName}</TableCell>
+                    <TableCell className="font-medium">{getDisplayName(student)}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{student.user?.email ?? "—"}</TableCell>
                     <TableCell>
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary">
                         Type {student.scheduleType}
                       </span>
                     </TableCell>
                     <TableCell>Page {student.currentLesson}</TableCell>
-                    <TableCell className="max-w-[200px] truncate text-muted-foreground">{student.notes || "-"}</TableCell>
+                    <TableCell className="max-w-[200px] truncate text-muted-foreground">{student.notes || "—"}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button 
