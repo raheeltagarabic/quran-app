@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  useListStudents, useCreateStudent, useDeleteStudent, useListUsers, useUpdateStudent,
+  useListStudents, useCreateStudent, useDeleteStudent, useUpdateStudent,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,8 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Search, Pencil, UserCheck } from "lucide-react";
+import { Plus, Trash2, Search, Pencil, UserCheck, Mail, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useListUsers } from "@workspace/api-client-react";
 
 type Student = NonNullable<ReturnType<typeof useListStudents>["data"]>[number];
 
@@ -22,16 +23,26 @@ export default function TeacherStudents() {
   const [search, setSearch] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [addSchedule, setAddSchedule] = useState("A");
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["/api/students"] });
+
   const createStudent = useCreateStudent({
     mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["/api/students"] });
+      onSuccess: (data: any) => {
+        invalidate();
         setIsAddOpen(false);
-        toast({ title: "Student created successfully" });
+        toast({
+          title: data.parentLinked
+            ? "Student created and parent linked successfully"
+            : "Student created successfully",
+        });
+      },
+      onError: (err: any) => {
+        toast({ title: "Failed to create student", description: err?.message, variant: "destructive" });
       },
     },
   });
@@ -39,9 +50,12 @@ export default function TeacherStudents() {
   const updateStudent = useUpdateStudent({
     mutation: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["/api/students"] });
+        invalidate();
         setEditingStudent(null);
-        toast({ title: "Student updated" });
+        toast({ title: "Student updated successfully" });
+      },
+      onError: (err: any) => {
+        toast({ title: "Failed to update student", description: err?.message, variant: "destructive" });
       },
     },
   });
@@ -49,7 +63,7 @@ export default function TeacherStudents() {
   const deleteStudent = useDeleteStudent({
     mutation: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["/api/students"] });
+        invalidate();
         toast({ title: "Student deleted" });
       },
     },
@@ -60,12 +74,17 @@ export default function TeacherStudents() {
     return full || student.user?.email || `Student #${student.id}`;
   };
 
-  const getUserLabel = (u: { id: string; firstName?: string | null; lastName?: string | null; email?: string | null }) => {
-    const full = `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim();
-    return full ? `${full} (${u.email ?? u.id})` : (u.email ?? u.id);
+  const getParentLabel = (student: any) => {
+    if (!student.parent && !student.parentId) return null;
+    const p = student.parent;
+    if (!p) return student.parentId ? "Linked (no details)" : null;
+    const full = `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim();
+    return full ? `${full} · ${p.email ?? ""}` : (p.email ?? "Linked");
   };
 
-  const parentUsers = (users ?? []).filter(u => u.role === "parent");
+  const getParentEmail = (student: any): string => {
+    return student.parent?.email ?? "";
+  };
 
   const filteredStudents = (students ?? []).filter(s => {
     if (!search) return true;
@@ -77,12 +96,16 @@ export default function TeacherStudents() {
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const parentEmail = (fd.get("parentEmail") as string | null)?.trim() || undefined;
+    const parentName = (fd.get("parentName") as string | null)?.trim() || undefined;
     createStudent.mutate({
       data: {
         userId: fd.get("userId") as string,
-        scheduleType: fd.get("scheduleType") as string,
+        scheduleType: addSchedule,
         currentLesson: Number(fd.get("currentLesson")),
-        notes: fd.get("notes") as string,
+        notes: (fd.get("notes") as string) || undefined,
+        parentEmail,
+        parentName,
       },
     });
   };
@@ -91,14 +114,16 @@ export default function TeacherStudents() {
     e.preventDefault();
     if (!editingStudent) return;
     const fd = new FormData(e.currentTarget);
-    const parentId = fd.get("parentId") as string;
+    const parentEmail = (fd.get("parentEmail") as string | null)?.trim() ?? "";
+    const parentName = (fd.get("parentName") as string | null)?.trim() || undefined;
     updateStudent.mutate({
       id: editingStudent.id,
       data: {
         scheduleType: fd.get("scheduleType") as string,
         currentLesson: Number(fd.get("currentLesson")),
         notes: fd.get("notes") as string,
-        parentId: parentId === "__none__" || !parentId ? null : parentId,
+        parentEmail,
+        parentName,
       },
     });
   };
@@ -111,8 +136,8 @@ export default function TeacherStudents() {
           <p className="text-muted-foreground mt-1">Add, update, or remove student profiles.</p>
         </div>
 
-        {/* Add Student Dialog */}
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        {/* ── Add Student Dialog ── */}
+        <Dialog open={isAddOpen} onOpenChange={open => { setIsAddOpen(open); if (!open) setAddSchedule("A"); }}>
           <DialogTrigger asChild>
             <Button className="rounded-xl shadow-lg shadow-primary/20">
               <Plus className="mr-2 h-4 w-4" /> Add Student
@@ -123,42 +148,84 @@ export default function TeacherStudents() {
               <DialogTitle className="font-display text-2xl">Add New Student</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4 mt-4">
+              {/* Student User */}
               <div className="space-y-2">
-                <Label>Select User</Label>
+                <Label>Student Account</Label>
                 <Select name="userId" required>
                   <SelectTrigger className="rounded-xl">
                     <SelectValue placeholder="Choose a user account" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(users ?? []).filter(u => u.role !== "teacher").map(u => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {getUserLabel(u)}
-                      </SelectItem>
-                    ))}
+                    {(users ?? []).filter(u => u.role !== "teacher").map(u => {
+                      const full = `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim();
+                      return (
+                        <SelectItem key={u.id} value={u.id}>
+                          {full ? `${full} (${u.email ?? u.id})` : (u.email ?? u.id)}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Schedule */}
               <div className="space-y-2">
                 <Label>Schedule Type</Label>
-                <Select name="scheduleType" defaultValue="A">
+                <Select name="scheduleType" value={addSchedule} onValueChange={setAddSchedule}>
                   <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="A">Schedule A (Qaida: Mon/Tue/Wed)</SelectItem>
-                    <SelectItem value="B">Schedule B (Qaida: Thu/Fri/Sat)</SelectItem>
+                    <SelectItem value="A">Schedule A (Mon / Tue / Wed)</SelectItem>
+                    <SelectItem value="B">Schedule B (Thu / Fri / Sat)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Lesson */}
               <div className="space-y-2">
-                <Label>Current Lesson</Label>
+                <Label>Starting Lesson</Label>
                 <Input type="number" name="currentLesson" defaultValue={1} min={1} required className="rounded-xl" />
               </div>
+
+              {/* Notes */}
               <div className="space-y-2">
-                <Label>Notes</Label>
-                <Textarea name="notes" placeholder="Initial assessment notes..." className="rounded-xl resize-none" />
+                <Label>Notes <span className="text-muted-foreground">(optional)</span></Label>
+                <Textarea name="notes" placeholder="Initial assessment notes…" className="rounded-xl resize-none" rows={2} />
               </div>
-              <div className="pt-4 flex justify-end">
-                <Button type="submit" disabled={createStudent.isPending} className="rounded-xl">
-                  {createStudent.isPending ? "Saving..." : "Save Student"}
+
+              {/* Parent section */}
+              <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-3">
+                <p className="text-sm font-semibold flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-primary" /> Parent / Guardian <span className="text-muted-foreground font-normal">(optional)</span>
+                </p>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Parent Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      type="email"
+                      name="parentEmail"
+                      placeholder="parent@example.com"
+                      className="rounded-xl pl-9"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    If the parent hasn't logged in yet, their account will be created automatically. They can log in later to view their child's progress.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Parent Name <span className="text-muted-foreground">(optional)</span></Label>
+                  <Input
+                    type="text"
+                    name="parentName"
+                    placeholder="e.g. Ahmed Khan"
+                    className="rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <Button type="submit" disabled={createStudent.isPending} className="rounded-xl px-6">
+                  {createStudent.isPending ? "Saving…" : "Add Student"}
                 </Button>
               </div>
             </form>
@@ -172,14 +239,14 @@ export default function TeacherStudents() {
         </div>
       )}
 
-      {/* Students Table */}
+      {/* ── Students Table ── */}
       <div className="bg-card rounded-2xl shadow-xl shadow-black/5 border border-border/50 overflow-hidden">
         <div className="p-4 border-b border-border/50 bg-muted/20 flex items-center gap-2">
           <Search className="w-5 h-5 text-muted-foreground ml-2" />
           <Input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search by name or email..."
+            placeholder="Search by name or email…"
             className="border-none bg-transparent shadow-none focus-visible:ring-0 px-2 font-medium"
           />
         </div>
@@ -200,7 +267,7 @@ export default function TeacherStudents() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">Loading students...</TableCell>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading students…</TableCell>
                 </TableRow>
               ) : filteredStudents.length === 0 ? (
                 <TableRow>
@@ -210,7 +277,7 @@ export default function TeacherStudents() {
                 </TableRow>
               ) : (
                 filteredStudents.map(student => {
-                  const linkedParent = (users ?? []).find(u => u.id === (student as any).parentId);
+                  const parentLabel = getParentLabel(student);
                   return (
                     <TableRow key={student.id} className="group">
                       <TableCell className="font-medium">{getDisplayName(student)}</TableCell>
@@ -221,17 +288,17 @@ export default function TeacherStudents() {
                         </span>
                       </TableCell>
                       <TableCell>Page {student.currentLesson}</TableCell>
-                      <TableCell>
-                        {linkedParent ? (
-                          <Badge variant="outline" className="gap-1 text-emerald-700 border-emerald-300 bg-emerald-50 text-xs">
-                            <UserCheck className="w-3 h-3" />
-                            {getUserLabel(linkedParent).split("(")[0].trim()}
+                      <TableCell className="max-w-[180px]">
+                        {parentLabel ? (
+                          <Badge variant="outline" className="gap-1 text-emerald-700 border-emerald-300 bg-emerald-50 text-xs truncate max-w-full">
+                            <UserCheck className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{parentLabel}</span>
                           </Badge>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                      <TableCell className="max-w-[200px] truncate text-muted-foreground">{student.notes || "—"}</TableCell>
+                      <TableCell className="max-w-[160px] truncate text-muted-foreground text-sm">{(student as any).notes || "—"}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button
@@ -265,7 +332,7 @@ export default function TeacherStudents() {
         </div>
       </div>
 
-      {/* Edit Student Dialog */}
+      {/* ── Edit Student Dialog ── */}
       {editingStudent && (
         <Dialog open={!!editingStudent} onOpenChange={open => !open && setEditingStudent(null)}>
           <DialogContent className="sm:max-w-md rounded-2xl">
@@ -273,16 +340,19 @@ export default function TeacherStudents() {
               <DialogTitle className="font-display text-2xl">Edit Student</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleEdit} className="space-y-4 mt-4">
+              {/* Schedule */}
               <div className="space-y-2">
                 <Label>Schedule Type</Label>
                 <Select name="scheduleType" defaultValue={editingStudent.scheduleType}>
                   <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="A">Schedule A (Qaida: Mon/Tue/Wed)</SelectItem>
-                    <SelectItem value="B">Schedule B (Qaida: Thu/Fri/Sat)</SelectItem>
+                    <SelectItem value="A">Schedule A (Mon / Tue / Wed)</SelectItem>
+                    <SelectItem value="B">Schedule B (Thu / Fri / Sat)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Lesson */}
               <div className="space-y-2">
                 <Label>Current Lesson</Label>
                 <Input
@@ -294,39 +364,66 @@ export default function TeacherStudents() {
                   className="rounded-xl"
                 />
               </div>
+
+              {/* Notes */}
               <div className="space-y-2">
                 <Label>Teacher Notes</Label>
                 <Textarea
                   name="notes"
-                  defaultValue={editingStudent.notes ?? ""}
-                  placeholder="Notes visible to parent..."
+                  defaultValue={(editingStudent as any).notes ?? ""}
+                  placeholder="Notes visible to parent…"
                   className="rounded-xl resize-none"
+                  rows={2}
                 />
               </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <UserCheck className="w-4 h-4 text-primary" />
-                  Link Parent Account
-                </Label>
-                <Select
-                  name="parentId"
-                  defaultValue={(editingStudent as any).parentId ?? "__none__"}
-                >
-                  <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">— No parent linked —</SelectItem>
-                    {(users ?? []).filter(u => u.role === "parent").map(u => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {getUserLabel(u)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Parent must log in once to create their account, then you can link them here.
-                </p>
+
+              {/* Parent section */}
+              <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold flex items-center gap-2">
+                    <UserCheck className="w-4 h-4 text-primary" /> Parent / Guardian
+                  </p>
+                  {getParentEmail(editingStudent) && (
+                    <Badge variant="outline" className="text-emerald-700 border-emerald-300 bg-emerald-50 text-xs gap-1">
+                      <UserCheck className="w-3 h-3" /> Linked
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Parent Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      type="email"
+                      name="parentEmail"
+                      defaultValue={getParentEmail(editingStudent)}
+                      placeholder="parent@example.com"
+                      className="rounded-xl pl-9"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Leave blank to remove parent link. If the email doesn't exist yet, a new parent account will be created automatically.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Parent Name <span className="text-muted-foreground">(optional, only used when creating a new account)</span></Label>
+                  <Input
+                    type="text"
+                    name="parentName"
+                    defaultValue={(() => {
+                      const p = (editingStudent as any).parent;
+                      if (!p) return "";
+                      return `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim();
+                    })()}
+                    placeholder="e.g. Ahmed Khan"
+                    className="rounded-xl"
+                  />
+                </div>
               </div>
-              <div className="pt-4 flex justify-end gap-3">
+
+              <div className="pt-2 flex justify-end gap-3">
                 <Button
                   type="button"
                   variant="outline"
@@ -335,8 +432,8 @@ export default function TeacherStudents() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={updateStudent.isPending} className="rounded-xl">
-                  {updateStudent.isPending ? "Saving..." : "Save Changes"}
+                <Button type="submit" disabled={updateStudent.isPending} className="rounded-xl px-6">
+                  {updateStudent.isPending ? "Saving…" : "Save Changes"}
                 </Button>
               </div>
             </form>

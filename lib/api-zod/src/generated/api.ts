@@ -68,6 +68,8 @@ export const CreateStudentBody = zod.object({
   scheduleType: zod.string(),
   currentLesson: zod.number().optional(),
   notes: zod.string().optional(),
+  parentEmail: zod.string().email().optional(),
+  parentName: zod.string().optional(),
 });
 
 /**
@@ -141,7 +143,8 @@ export const UpdateStudentBody = zod.object({
   scheduleType: zod.string().optional(),
   currentLesson: zod.number().optional(),
   notes: zod.string().optional(),
-  parentId: zod.string().nullish(),
+  parentEmail: zod.string().email().optional().or(zod.literal("")),
+  parentName: zod.string().optional(),
 });
 
 export const UpdateStudentResponse = zod.object({
