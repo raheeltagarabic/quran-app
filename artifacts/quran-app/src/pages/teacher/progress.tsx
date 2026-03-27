@@ -7,6 +7,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Target, TrendingUp } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 
+function getStudentLabel(s: { id: number; user?: { firstName?: string | null; lastName?: string | null; email?: string | null } | null }) {
+  const full = `${s.user?.firstName ?? ""} ${s.user?.lastName ?? ""}`.trim();
+  return full || s.user?.email || `Student #${s.id}`;
+}
+
 export default function TeacherProgress() {
   const { data: students } = useListStudents();
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
@@ -38,9 +43,9 @@ export default function TeacherProgress() {
               <SelectValue placeholder="Select a student..." />
             </SelectTrigger>
             <SelectContent>
-              {students?.map(s => (
+              {(students ?? []).map(s => (
                 <SelectItem key={s.id} value={s.id.toString()}>
-                  {s.user?.firstName} {s.user?.lastName}
+                  {getStudentLabel(s)}
                 </SelectItem>
               ))}
             </SelectContent>

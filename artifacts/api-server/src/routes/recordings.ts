@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { recordingsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { recordingsTable, studentsTable, usersTable } from "@workspace/db";
+import { eq, inArray } from "drizzle-orm";
 import { CreateRecordingBody } from "@workspace/api-zod";
 import multer from "multer";
 import path from "path";
@@ -25,6 +25,52 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
+
+// Returns distinct students who have at least one recording, with display name
+router.get("/recordings/students", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  try {
+    // Get distinct student_ids from recordings
+    const rows = await db
+      .selectDistinct({ studentId: recordingsTable.studentId })
+      .from(recordingsTable);
+
+    if (rows.length === 0) {
+      res.json([]);
+      return;
+    }
+
+    const studentIds = rows.map(r => r.studentId);
+
+    // Fetch student + user info for those ids
+    const students = await db
+      .select({
+        id: studentsTable.id,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+        email: usersTable.email,
+      })
+      .from(studentsTable)
+      .leftJoin(usersTable, eq(studentsTable.userId, usersTable.id))
+      .where(inArray(studentsTable.id, studentIds));
+
+    const result = students.map(s => {
+      const full = `${s.firstName ?? ""} ${s.lastName ?? ""}`.trim();
+      return {
+        id: s.id,
+        name: full || s.email || `Student #${s.id}`,
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err }, "Error getting recording students");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 router.get("/students/:id/recordings", async (req, res) => {
   if (!req.isAuthenticated()) {

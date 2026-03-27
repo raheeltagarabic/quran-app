@@ -1,25 +1,36 @@
 import { useState } from "react";
-import { useListStudents, useGetStudentRecordings } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
+import { useGetStudentRecordings } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Mic, PlayCircle, Users } from "lucide-react";
 
-function getStudentLabel(s: { id: number; user?: { firstName?: string | null; lastName?: string | null; email?: string | null } | null }) {
-  const first = s.user?.firstName ?? "";
-  const last = s.user?.lastName ?? "";
-  const full = `${first} ${last}`.trim();
-  return full || s.user?.email || `Student #${s.id}`;
+// Student type returned by /api/recordings/students
+type RecordingStudent = { id: number; name: string };
+
+function useStudentsWithRecordings() {
+  return useQuery<RecordingStudent[]>({
+    queryKey: ["/api/recordings/students"],
+    queryFn: async () => {
+      const res = await fetch("/api/recordings/students", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+  });
 }
 
 export default function TeacherRecordings() {
-  const { data: students } = useListStudents();
+  const { data: students, isLoading: studentsLoading } = useStudentsWithRecordings();
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
 
-  const { data: recordings, isLoading } = useGetStudentRecordings(selectedStudentId!, {
-    query: { enabled: !!selectedStudentId },
-  });
+  const { data: recordings, isLoading: recordingsLoading } = useGetStudentRecordings(
+    selectedStudentId!,
+    { query: { enabled: !!selectedStudentId } },
+  );
+
+  const selectedStudent = students?.find(s => s.id === selectedStudentId);
 
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
@@ -34,14 +45,18 @@ export default function TeacherRecordings() {
           <Select
             value={selectedStudentId?.toString() ?? ""}
             onValueChange={(val) => setSelectedStudentId(Number(val))}
+            disabled={studentsLoading}
           >
             <SelectTrigger className="rounded-xl shadow-sm bg-card">
-              <SelectValue placeholder="Select a student…" />
+              <SelectValue placeholder={
+                studentsLoading ? "Loading students…" :
+                (students?.length === 0 ? "No recordings yet" : "Select a student…")
+              } />
             </SelectTrigger>
             <SelectContent>
               {(students ?? []).map(s => (
                 <SelectItem key={s.id} value={s.id.toString()}>
-                  {getStudentLabel(s)}
+                  {s.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -50,24 +65,34 @@ export default function TeacherRecordings() {
       </div>
 
       {/* Empty state — no student selected */}
-      {!selectedStudentId && (
+      {!selectedStudentId && !studentsLoading && (students?.length ?? 0) === 0 && (
         <div className="py-20 text-center text-muted-foreground bg-card/50 rounded-3xl border border-dashed border-border">
-          <Users className="w-16 h-16 mx-auto mb-4 opacity-20" />
-          <p className="text-lg font-medium text-foreground">Select a student above</p>
-          <p className="text-sm mt-1">Their audio recordings will appear here.</p>
+          <Mic className="w-16 h-16 mx-auto mb-4 opacity-20" />
+          <p className="text-lg font-medium text-foreground">No recordings submitted yet</p>
+          <p className="text-sm mt-1">Students will appear here once they upload a recitation.</p>
         </div>
       )}
 
-      {/* Loading */}
-      {selectedStudentId && isLoading && (
+      {!selectedStudentId && (students?.length ?? 0) > 0 && (
+        <div className="py-20 text-center text-muted-foreground bg-card/50 rounded-3xl border border-dashed border-border">
+          <Users className="w-16 h-16 mx-auto mb-4 opacity-20" />
+          <p className="text-lg font-medium text-foreground">Select a student above</p>
+          <p className="text-sm mt-1">
+            {students!.length} student{students!.length !== 1 ? "s" : ""} with recordings found.
+          </p>
+        </div>
+      )}
+
+      {/* Loading recordings */}
+      {selectedStudentId && recordingsLoading && (
         <div className="py-20 text-center">
           <div className="w-8 h-8 rounded-full border-4 border-primary/30 border-t-primary animate-spin mx-auto mb-3" />
           <p className="text-muted-foreground text-sm">Loading recordings…</p>
         </div>
       )}
 
-      {/* No recordings */}
-      {selectedStudentId && !isLoading && recordings?.length === 0 && (
+      {/* No recordings for this student */}
+      {selectedStudentId && !recordingsLoading && recordings?.length === 0 && (
         <div className="py-20 text-center text-muted-foreground bg-card/50 rounded-3xl border border-dashed border-border">
           <Mic className="w-16 h-16 mx-auto mb-4 opacity-20" />
           <p className="text-lg font-medium text-foreground">No recordings yet</p>
@@ -76,10 +101,10 @@ export default function TeacherRecordings() {
       )}
 
       {/* Recordings list */}
-      {selectedStudentId && !isLoading && (recordings?.length ?? 0) > 0 && (
+      {selectedStudentId && !recordingsLoading && (recordings?.length ?? 0) > 0 && (
         <div className="space-y-4">
           <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-            {recordings!.length} recording{recordings!.length !== 1 ? "s" : ""} found
+            {recordings!.length} recording{recordings!.length !== 1 ? "s" : ""} — {selectedStudent?.name}
           </p>
           {recordings!.slice().reverse().map(rec => (
             <Card key={rec.id} className="rounded-2xl shadow-sm border-border/50 overflow-hidden hover:shadow-md transition-all">
@@ -89,11 +114,7 @@ export default function TeacherRecordings() {
                   <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5 text-xs mb-1">
                     Lesson {rec.lesson}
                   </Badge>
-                  <p className="text-sm font-semibold text-foreground">
-                    {selectedStudentId
-                      ? getStudentLabel((students ?? []).find(s => s.id === selectedStudentId) ?? { id: selectedStudentId })
-                      : `Student #${rec.studentId}`}
-                  </p>
+                  <p className="text-sm font-semibold text-foreground">{selectedStudent?.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {rec.createdAt ? format(new Date(rec.createdAt), "MMM d, yyyy · h:mm a") : "—"}
                   </p>
