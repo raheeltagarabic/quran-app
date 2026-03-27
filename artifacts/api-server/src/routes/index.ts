@@ -7,6 +7,7 @@ import questionsRouter from "./questions";
 import resultsRouter from "./results";
 import recordingsRouter from "./recordings";
 import usersRouter from "./users";
+import progressRouter from "./progress";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(questionsRouter);
 router.use(resultsRouter);
 router.use(recordingsRouter);
 router.use(usersRouter);
+router.use(progressRouter);
 
 export default router;

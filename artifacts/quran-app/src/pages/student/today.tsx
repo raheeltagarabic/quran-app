@@ -1,34 +1,36 @@
 import { useState, type ReactNode } from "react";
-import { 
-  useGetMyStudentProfile, 
-  useListTopics, 
-  useGetTopic, 
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useGetMyStudentProfile,
+  useListTopics,
+  useGetTopic,
   useSubmitTestResult,
   useUploadRecording,
-  useCreateRecording
+  useCreateRecording,
 } from "@workspace/api-client-react";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Video, Mic, SquareSquare, CheckCircle2, ChevronRight, BookOpen, Target, Moon, ChevronLeft } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import {
+  Video, Mic, SquareSquare, CheckCircle2, ChevronRight, BookOpen,
+  Target, Moon, ChevronLeft, CheckCheck,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
 
-// Schedule logic per requirements
+// ─── Schedule logic ─────────────────────────────────────────────────────────
+
 function getMode(schedule: string): "qaida" | "test" | "off" {
   const day = new Date().getDay();
-
   if (schedule === "A") {
     if ([1, 2, 3].includes(day)) return "qaida";
     if ([4, 5].includes(day)) return "test";
   }
-
   if (schedule === "B") {
     if ([4, 5, 6].includes(day)) return "qaida";
     if ([0, 1].includes(day)) return "test";
   }
-
   return "off";
 }
 
@@ -40,8 +42,45 @@ function formatTime(seconds: number) {
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+// ─── Progress hooks ──────────────────────────────────────────────────────────
+
+type ProgressRow = { id: number; studentId: number; lessonNumber: number; completed: boolean; createdAt: string };
+
+function useMyProgress() {
+  return useQuery<ProgressRow[]>({
+    queryKey: ["/api/progress/me"],
+    queryFn: async () => {
+      const res = await fetch("/api/progress/me", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch progress");
+      return res.json();
+    },
+  });
+}
+
+function useMarkLessonComplete() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (lessonNumber: number) => {
+      const res = await fetch("/api/progress/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ lessonNumber }),
+      });
+      if (!res.ok) throw new Error("Failed to mark lesson complete");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/progress/me"] });
+    },
+  });
+}
+
+// ─── Root page ───────────────────────────────────────────────────────────────
+
 export default function StudentToday() {
   const { data: profile, isLoading } = useGetMyStudentProfile();
+  const { data: progressRows = [] } = useMyProgress();
 
   if (isLoading) {
     return (
@@ -59,7 +98,9 @@ export default function StudentToday() {
           <CheckCircle2 className="w-8 h-8 text-destructive" />
         </div>
         <h2 className="text-xl font-display mb-2">Profile Not Found</h2>
-        <p className="text-muted-foreground text-sm">Your teacher hasn't set up your student profile yet. Please contact them to get started.</p>
+        <p className="text-muted-foreground text-sm">
+          Your teacher hasn't set up your student profile yet. Please contact them to get started.
+        </p>
       </div>
     );
   }
@@ -67,6 +108,12 @@ export default function StudentToday() {
   const mode = getMode(profile.scheduleType);
   const today = DAY_NAMES[new Date().getDay()];
   const displayName = profile.user?.firstName ?? profile.user?.email?.split("@")[0] ?? "Student";
+
+  const completedLessons = new Set(progressRows.filter(r => r.completed).map(r => r.lessonNumber));
+  const totalLessons = profile.currentLesson;
+  const completedCount = completedLessons.size;
+  const remainingCount = Math.max(0, totalLessons - completedCount);
+  const progressPct = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
 
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto animate-in fade-in duration-700 space-y-8">
@@ -79,6 +126,32 @@ export default function StudentToday() {
         <p className="text-muted-foreground">{today} · Schedule Type {profile.scheduleType}</p>
       </div>
 
+      {/* Qaida Progress Summary */}
+      <Card className="rounded-2xl border-border/50 shadow-sm">
+        <CardContent className="p-5 flex flex-col sm:flex-row items-start sm:items-center gap-5">
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <BookOpen className="w-6 h-6 text-primary" />
+          </div>
+          <div className="flex-1 space-y-2 w-full">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-sm text-foreground">Qaida Lesson Progress</span>
+              <span className="text-sm font-bold text-primary">{progressPct}%</span>
+            </div>
+            <Progress value={progressPct} className="h-2 rounded-full" />
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <CheckCheck className="w-3.5 h-3.5 text-primary" />
+                <strong className="text-foreground">{completedCount}</strong> completed
+              </span>
+              <span>·</span>
+              <span><strong className="text-foreground">{remainingCount}</strong> remaining</span>
+              <span>·</span>
+              <span>On lesson <strong className="text-foreground">{totalLessons}</strong></span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Day Banner */}
       {mode === "qaida" && (
         <div className="flex items-center gap-4 rounded-2xl px-6 py-4 bg-primary text-primary-foreground shadow-lg shadow-primary/30">
@@ -87,7 +160,9 @@ export default function StudentToday() {
           </div>
           <div>
             <p className="font-bold text-lg leading-tight">Today: Qaida Class</p>
-            <p className="text-primary-foreground/80 text-sm">Open your Qaida book to page {profile.currentLesson} and join your teacher.</p>
+            <p className="text-primary-foreground/80 text-sm">
+              Open your Qaida book to page {profile.currentLesson} and join your teacher.
+            </p>
           </div>
         </div>
       )}
@@ -117,27 +192,36 @@ export default function StudentToday() {
       )}
 
       {/* Mode Content */}
-      {mode === "qaida" && <QaidaView profile={profile} />}
-      {mode === "test"  && <TestModeView studentId={profile.id} />}
-      {mode === "off"   && <RestDayView profile={profile} />}
+      {mode === "qaida" && (
+        <QaidaView profile={profile} completedLessons={completedLessons} />
+      )}
+      {mode === "test" && <TestModeView studentId={profile.id} />}
+      {mode === "off" && (
+        <RestDayView profile={profile} completedLessons={completedLessons} />
+      )}
     </div>
   );
 }
 
-// ─── Lesson Viewer (shared) ───────────────────────────────────────────────────
+// ─── Lesson Viewer ───────────────────────────────────────────────────────────
 
-function LessonViewer({ initialLesson, badge }: { initialLesson: number; badge: ReactNode }) {
+function LessonViewer({
+  initialLesson,
+  badge,
+  completedLessons,
+  onMarkComplete,
+}: {
+  initialLesson: number;
+  badge: ReactNode;
+  completedLessons: Set<number>;
+  onMarkComplete: (lessonNumber: number) => void;
+}) {
   const [lesson, setLesson] = useState(initialLesson);
   const [imgError, setImgError] = useState(false);
+  const isCompleted = completedLessons.has(lesson);
 
-  const handlePrev = () => {
-    setLesson(l => l - 1);
-    setImgError(false);
-  };
-  const handleNext = () => {
-    setLesson(l => l + 1);
-    setImgError(false);
-  };
+  const handlePrev = () => { setLesson(l => l - 1); setImgError(false); };
+  const handleNext = () => { setLesson(l => l + 1); setImgError(false); };
 
   return (
     <Card className="md:col-span-2 rounded-3xl shadow-lg border-border/50 overflow-hidden">
@@ -148,7 +232,7 @@ function LessonViewer({ initialLesson, badge }: { initialLesson: number; badge: 
         </div>
       </CardHeader>
       <CardContent className="p-6 space-y-4">
-        {/* Image */}
+        {/* Lesson image */}
         <div className="aspect-[3/4] bg-muted/30 rounded-2xl border border-dashed border-border/60 flex items-center justify-center relative overflow-hidden">
           {!imgError ? (
             <img
@@ -168,6 +252,23 @@ function LessonViewer({ initialLesson, badge }: { initialLesson: number; badge: 
             </div>
           )}
         </div>
+
+        {/* Mark as Completed button */}
+        {isCompleted ? (
+          <div className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-primary/10 text-primary font-semibold text-sm border border-primary/20">
+            <CheckCheck className="w-4 h-4" />
+            Lesson {lesson} Completed
+          </div>
+        ) : (
+          <Button
+            className="w-full rounded-xl"
+            variant="outline"
+            onClick={() => onMarkComplete(lesson)}
+          >
+            <CheckCircle2 className="w-4 h-4 mr-2" />
+            Mark Lesson {lesson} as Completed
+          </Button>
+        )}
 
         {/* Navigation */}
         <div className="flex items-center justify-between gap-3">
@@ -197,10 +298,17 @@ function LessonViewer({ initialLesson, badge }: { initialLesson: number; badge: 
 
 // ─── Qaida View ──────────────────────────────────────────────────────────────
 
-function QaidaView({ profile }: { profile: any }) {
+function QaidaView({
+  profile,
+  completedLessons,
+}: {
+  profile: any;
+  completedLessons: Set<number>;
+}) {
   const { isRecording, startRecording, stopRecording, audioBlob, clearAudio, recordingTime } = useAudioRecorder();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const markComplete = useMarkLessonComplete();
 
   const uploadRecording = useUploadRecording();
   const createRecording = useCreateRecording();
@@ -224,10 +332,25 @@ function QaidaView({ profile }: { profile: any }) {
     }
   };
 
+  const handleMarkComplete = async (lessonNumber: number) => {
+    try {
+      const result = await markComplete.mutateAsync(lessonNumber);
+      if (result.alreadyCompleted) {
+        toast({ title: `Lesson ${lessonNumber} was already marked as completed.` });
+      } else {
+        toast({ title: `Lesson ${lessonNumber} marked as completed!` });
+      }
+    } catch {
+      toast({ title: "Failed to mark lesson as completed.", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       <LessonViewer
         initialLesson={profile.currentLesson}
+        completedLessons={completedLessons}
+        onMarkComplete={handleMarkComplete}
         badge={
           <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5">
             <BookOpen className="w-3 h-3 mr-1" /> Qaida Mode
@@ -316,13 +439,36 @@ function QaidaView({ profile }: { profile: any }) {
 
 // ─── Rest Day View ───────────────────────────────────────────────────────────
 
-function RestDayView({ profile }: { profile: any }) {
+function RestDayView({
+  profile,
+  completedLessons,
+}: {
+  profile: any;
+  completedLessons: Set<number>;
+}) {
   const [practicing, setPracticing] = useState(false);
+  const markComplete = useMarkLessonComplete();
+  const { toast } = useToast();
+
+  const handleMarkComplete = async (lessonNumber: number) => {
+    try {
+      const result = await markComplete.mutateAsync(lessonNumber);
+      if (result.alreadyCompleted) {
+        toast({ title: `Lesson ${lessonNumber} was already marked as completed.` });
+      } else {
+        toast({ title: `Lesson ${lessonNumber} marked as completed!` });
+      }
+    } catch {
+      toast({ title: "Failed to mark lesson as completed.", variant: "destructive" });
+    }
+  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       <LessonViewer
         initialLesson={profile.currentLesson}
+        completedLessons={completedLessons}
+        onMarkComplete={handleMarkComplete}
         badge={
           <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30 bg-muted/20">
             <BookOpen className="w-3 h-3 mr-1" /> Revision
@@ -340,14 +486,11 @@ function RestDayView({ profile }: { profile: any }) {
             <div>
               <h3 className="font-display text-xl font-bold mb-1">Revise Your Lesson</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                It's a rest day — no live class or test. Use this time to go over Lesson {profile.currentLesson} on your own.
+                It's a rest day — no live class or test. Use this time to go over Lesson{" "}
+                {profile.currentLesson} on your own.
               </p>
             </div>
-            <Button
-              size="lg"
-              className="w-full rounded-xl"
-              onClick={() => setPracticing(true)}
-            >
+            <Button size="lg" className="w-full rounded-xl" onClick={() => setPracticing(true)}>
               <BookOpen className="w-4 h-4 mr-2" /> Practice Lesson
             </Button>
           </CardContent>
@@ -389,7 +532,13 @@ function TestModeView({ studentId }: { studentId: number }) {
   if (isLoading) return <div className="animate-pulse h-40 bg-muted/50 rounded-3xl" />;
 
   if (selectedTopicId) {
-    return <TestQuiz studentId={studentId} topicId={selectedTopicId} onBack={() => setSelectedTopicId(null)} />;
+    return (
+      <TestQuiz
+        studentId={studentId}
+        topicId={selectedTopicId}
+        onBack={() => setSelectedTopicId(null)}
+      />
+    );
   }
 
   return (
@@ -439,9 +588,7 @@ function TestQuiz({ studentId, topicId, onBack }: { studentId: number; topicId: 
     return (
       <div className="text-center py-12">
         <p className="mb-4 text-muted-foreground">No questions available for this topic yet.</p>
-        <Button variant="outline" onClick={onBack} className="rounded-xl">
-          Go Back
-        </Button>
+        <Button variant="outline" onClick={onBack} className="rounded-xl">Go Back</Button>
       </div>
     );
   }
@@ -459,9 +606,7 @@ function TestQuiz({ studentId, topicId, onBack }: { studentId: number; topicId: 
       setCurrentIndex(prev => prev + 1);
     } else {
       let correct = 0;
-      questions.forEach(q => {
-        if (answers[q.id] === q.correctAnswer) correct++;
-      });
+      questions.forEach(q => { if (answers[q.id] === q.correctAnswer) correct++; });
       setScore(correct);
       setSubmitted(true);
       await submitResult.mutateAsync({
@@ -473,7 +618,6 @@ function TestQuiz({ studentId, topicId, onBack }: { studentId: number; topicId: 
   if (submitted) {
     const percentage = Math.round((score / questions.length) * 100);
     const passed = percentage >= 70;
-
     return (
       <Card className="max-w-md mx-auto text-center rounded-3xl overflow-hidden shadow-2xl border-border/50">
         <div className={`h-3 w-full ${passed ? "bg-primary" : "bg-amber-400"}`} />
@@ -506,7 +650,6 @@ function TestQuiz({ studentId, topicId, onBack }: { studentId: number; topicId: 
 
       <Card className="rounded-3xl shadow-xl border-border/50">
         <CardContent className="p-8 md:p-10">
-          {/* Progress bar */}
           <div className="w-full h-1.5 bg-muted rounded-full mb-10 overflow-hidden">
             <div
               className="h-full bg-amber-400 transition-all duration-500 ease-out"
