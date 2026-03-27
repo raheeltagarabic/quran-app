@@ -6,6 +6,7 @@ import { CreateRecordingBody } from "@workspace/api-zod";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { autoMarkPresent } from "./attendance";
 
 const router: IRouter = Router();
 
@@ -127,6 +128,8 @@ router.post("/recordings", async (req, res) => {
   }
   try {
     const [recording] = await db.insert(recordingsTable).values(parsed.data).returning();
+    // Auto-mark student as present for today when they submit a recording
+    autoMarkPresent(parsed.data.studentId).catch(() => {});
     res.status(201).json(recording);
   } catch (err) {
     req.log.error({ err }, "Error creating recording" );

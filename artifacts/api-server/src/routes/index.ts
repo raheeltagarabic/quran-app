@@ -8,6 +8,7 @@ import resultsRouter from "./results";
 import recordingsRouter from "./recordings";
 import usersRouter from "./users";
 import progressRouter from "./progress";
+import attendanceRouter from "./attendance";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(resultsRouter);
 router.use(recordingsRouter);
 router.use(usersRouter);
 router.use(progressRouter);
+router.use(attendanceRouter);
 
 export default router;
