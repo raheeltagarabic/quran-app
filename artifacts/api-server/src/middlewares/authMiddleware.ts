@@ -1,6 +1,8 @@
 import * as oidc from "openid-client";
 import { type Request, type Response, type NextFunction } from "express";
 import type { AuthUser } from "@workspace/api-zod";
+import { db, usersTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import {
   clearSession,
   getOidcConfig,
@@ -82,6 +84,21 @@ export async function authMiddleware(
     return;
   }
 
-  req.user = refreshed.user;
+  // Always fetch fresh role from DB so role changes take effect without re-login
+  try {
+    const [freshUser] = await db
+      .select({ role: usersTable.role })
+      .from(usersTable)
+      .where(eq(usersTable.id, refreshed.user.id))
+      .limit(1);
+
+    req.user = {
+      ...refreshed.user,
+      role: freshUser?.role ?? refreshed.user.role,
+    };
+  } catch {
+    req.user = refreshed.user;
+  }
+
   next();
 }

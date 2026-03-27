@@ -1,49 +1,30 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useCallback } from "react";
 import type { AuthUser } from "@workspace/api-client-react";
 
 export type { AuthUser };
 
-interface AuthState {
-  user: AuthUser | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  login: () => void;
-  logout: () => void;
+const AUTH_QUERY_KEY = ["/api/auth/user"];
+
+async function fetchUser(): Promise<AuthUser | null> {
+  const res = await fetch("/api/auth/user", { credentials: "include" });
+  if (!res.ok) return null;
+  const data = (await res.json()) as { user: AuthUser | null };
+  return data.user ?? null;
 }
 
-export function useAuth(): AuthState {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    fetch("/api/auth/user", { credentials: "include" })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<{ user: AuthUser | null }>;
-      })
-      .then((data) => {
-        if (!cancelled) {
-          setUser(data.user ?? null);
-          setIsLoading(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setUser(null);
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+export function useAuth() {
+  const { data: user = null, isLoading } = useQuery<AuthUser | null>({
+    queryKey: AUTH_QUERY_KEY,
+    queryFn: fetchUser,
+    staleTime: 30_000,
+    retry: false,
+  });
 
   const login = useCallback(() => {
-    const base = import.meta.env.BASE_URL.replace(/\/+$/, "") || "/";
-    window.location.href = `/api/login?returnTo=${encodeURIComponent(base)}`;
+    const base = import.meta.env.BASE_URL?.replace(/\/+$/, "") || "";
+    const returnTo = base || "/";
+    window.location.href = `/api/login?returnTo=${encodeURIComponent(returnTo)}`;
   }, []);
 
   const logout = useCallback(() => {
