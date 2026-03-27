@@ -320,11 +320,6 @@ export default function TeacherStudents() {
                         {getUserLabel(u)}
                       </SelectItem>
                     ))}
-                    {parentUsers.length === 0 && (
-                      <SelectItem value="__none__" disabled>
-                        No parent accounts found (ask parent to log in first)
-                      </SelectItem>
-                    )}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
