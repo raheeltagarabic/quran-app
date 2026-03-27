@@ -19,6 +19,7 @@ export function AppSidebar() {
   const { user, logout } = useAuth();
 
   const isTeacher = user?.role === "teacher";
+  const isParent = user?.role === "parent";
 
   const teacherItems = [
     { title: "Students", url: "/teacher/students", icon: Users },
@@ -34,7 +35,11 @@ export function AppSidebar() {
     { title: "My Progress", url: "/student/progress", icon: Target },
   ];
 
-  const items = isTeacher ? teacherItems : studentItems;
+  const parentItems = [
+    { title: "My Child's Progress", url: "/parent/dashboard", icon: GraduationCap },
+  ];
+
+  const items = isTeacher ? teacherItems : isParent ? parentItems : studentItems;
 
   return (
     <Sidebar>

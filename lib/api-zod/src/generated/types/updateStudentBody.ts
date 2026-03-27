@@ -10,4 +10,5 @@ export interface UpdateStudentBody {
   scheduleType?: string;
   currentLesson?: number;
   notes?: string;
+  parentId?: string | null;
 }

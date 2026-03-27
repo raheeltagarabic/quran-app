@@ -10,6 +10,7 @@ import usersRouter from "./users";
 import progressRouter from "./progress";
 import attendanceRouter from "./attendance";
 import feesRouter from "./fees";
+import parentRouter from "./parent";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(usersRouter);
 router.use(progressRouter);
 router.use(attendanceRouter);
 router.use(feesRouter);
+router.use(parentRouter);
 
 export default router;

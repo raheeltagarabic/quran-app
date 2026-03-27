@@ -19,6 +19,7 @@ import TeacherAttendance from "@/pages/teacher/attendance";
 import TeacherFees from "@/pages/teacher/fees";
 
 import StudentToday from "@/pages/student/today";
+import ParentDashboard from "@/pages/parent/dashboard";
 import StudentProgress from "@/pages/student/progress";
 
 const queryClient = new QueryClient({
@@ -44,9 +45,17 @@ function ProtectedRoute({ component: Component, allowedRole }: { component: any,
   if (!isAuthenticated) return <Redirect to="/login" />;
 
   const isTeacher = user?.role === "teacher";
-  
-  if (allowedRole === 'teacher' && !isTeacher) return <Redirect to="/student/today" />;
-  if (allowedRole === 'student' && isTeacher) return <Redirect to="/teacher/students" />;
+  const isParent = user?.role === "parent";
+
+  if (allowedRole === 'teacher' && !isTeacher) {
+    return <Redirect to={isParent ? "/parent/dashboard" : "/student/today"} />;
+  }
+  if (allowedRole === 'student' && (isTeacher || isParent)) {
+    return <Redirect to={isTeacher ? "/teacher/students" : "/parent/dashboard"} />;
+  }
+  if (allowedRole === 'parent' && !isParent) {
+    return <Redirect to={isTeacher ? "/teacher/students" : "/student/today"} />;
+  }
 
   return <Component />;
 }
@@ -72,7 +81,7 @@ function Layout() {
           <main className="flex-1 overflow-auto bg-background/50">
             <Switch>
               <Route path="/">
-                {user?.role === "teacher" ? <Redirect to="/teacher/students" /> : <Redirect to="/student/today" />}
+                {user?.role === "teacher" ? <Redirect to="/teacher/students" /> : user?.role === "parent" ? <Redirect to="/parent/dashboard" /> : <Redirect to="/student/today" />}
               </Route>
               
               <Route path="/teacher/students"><ProtectedRoute component={TeacherStudents} allowedRole="teacher" /></Route>
@@ -85,6 +94,8 @@ function Layout() {
 
               <Route path="/student/today"><ProtectedRoute component={StudentToday} allowedRole="student" /></Route>
               <Route path="/student/progress"><ProtectedRoute component={StudentProgress} allowedRole="student" /></Route>
+
+              <Route path="/parent/dashboard"><ProtectedRoute component={ParentDashboard} allowedRole="parent" /></Route>
 
               <Route component={NotFound} />
             </Switch>

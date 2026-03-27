@@ -141,6 +141,7 @@ export const UpdateStudentBody = zod.object({
   scheduleType: zod.string().optional(),
   currentLesson: zod.number().optional(),
   notes: zod.string().optional(),
+  parentId: zod.string().nullish(),
 });
 
 export const UpdateStudentResponse = zod.object({

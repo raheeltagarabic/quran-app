@@ -6,6 +6,7 @@ import { usersTable } from "./auth";
 export const studentsTable = pgTable("students", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   userId: varchar("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  parentId: varchar("parent_id").references(() => usersTable.id, { onDelete: "set null" }),
   scheduleType: varchar("schedule_type", { length: 1 }).notNull().default("A"),
   currentLesson: integer("current_lesson").notNull().default(1),
   notes: text("notes").default(""),
