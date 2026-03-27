@@ -84,6 +84,8 @@ async function upsertUser(claims: Record<string, unknown>) {
 
 router.get("/auth/user", (req: Request, res: Response) => {
   const isAuthenticated = req.isAuthenticated();
+  // Prevent browser from caching the auth response so role changes are always fresh
+  res.setHeader("Cache-Control", "no-store, max-age=0");
   res.json({
     user: isAuthenticated ? req.user : null,
     isAuthenticated,

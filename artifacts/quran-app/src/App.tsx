@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
+import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -33,47 +33,55 @@ const queryClient = new QueryClient({
   },
 });
 
-function ProtectedRoute({ component: Component, allowedRole }: { component: any, allowedRole?: 'teacher' | 'student' }) {
-  const { user, isAuthenticated, isLoading } = useAuth();
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-  if (isLoading) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+function FullPageSpinner() {
+  return (
+    <div className="h-screen w-full flex items-center justify-center bg-background">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  );
+}
 
+/** Returns the correct home path for a given role. */
+function roleHome(role: string | null | undefined): string {
+  if (role === "teacher") return "/teacher/students";
+  if (role === "parent") return "/parent/dashboard";
+  return "/student/today";
+}
+
+// ─── Route guard ─────────────────────────────────────────────────────────────
+
+/**
+ * Guards a single page. Redirects away if the user's role doesn't match.
+ * allowedRole: "teacher" | "student" | "parent"
+ */
+function RoleGuard({
+  component: Component,
+  allowedRole,
+}: {
+  component: React.ComponentType;
+  allowedRole: "teacher" | "student" | "parent";
+}) {
+  const { user, isLoading, isAuthenticated } = useAuth();
+
+  if (isLoading) return <FullPageSpinner />;
   if (!isAuthenticated) return <Redirect to="/login" />;
 
-  const isTeacher = user?.role === "teacher";
-  const isParent = user?.role === "parent";
+  const role = user?.role ?? "student";
 
-  if (allowedRole === 'teacher' && !isTeacher) {
-    return <Redirect to={isParent ? "/parent/dashboard" : "/student/today"} />;
-  }
-  if (allowedRole === 'student' && (isTeacher || isParent)) {
-    return <Redirect to={isTeacher ? "/teacher/students" : "/parent/dashboard"} />;
-  }
-  if (allowedRole === 'parent' && !isParent) {
-    return <Redirect to={isTeacher ? "/teacher/students" : "/student/today"} />;
+  if (role !== allowedRole) {
+    return <Redirect to={roleHome(role)} />;
   }
 
   return <Component />;
 }
 
-function Layout() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+// ─── Layout shell ─────────────────────────────────────────────────────────────
 
-  if (isLoading) return <div className="h-screen w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  if (!isAuthenticated) return <Redirect to="/login" />;
-
-  const style = {
-    "--sidebar-width": "18rem",
-  } as React.CSSProperties;
-
+function AppShell() {
   return (
-    <SidebarProvider style={style}>
+    <SidebarProvider style={{ "--sidebar-width": "18rem" } as React.CSSProperties}>
       <div className="flex h-screen w-full overflow-hidden bg-background">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
@@ -82,24 +90,47 @@ function Layout() {
           </header>
           <main className="flex-1 overflow-auto bg-background/50">
             <Switch>
-              <Route path="/">
-                {user?.role === "teacher" ? <Redirect to="/teacher/students" /> : user?.role === "parent" ? <Redirect to="/parent/dashboard" /> : <Redirect to="/student/today" />}
+              {/* Teacher routes */}
+              <Route path="/teacher/students">
+                <RoleGuard component={TeacherStudents} allowedRole="teacher" />
               </Route>
-              
-              <Route path="/teacher/students"><ProtectedRoute component={TeacherStudents} allowedRole="teacher" /></Route>
-              <Route path="/teacher/topics"><ProtectedRoute component={TeacherTopics} allowedRole="teacher" /></Route>
-              <Route path="/teacher/topics/:id"><ProtectedRoute component={TeacherTopicDetails} allowedRole="teacher" /></Route>
-              <Route path="/teacher/progress"><ProtectedRoute component={TeacherProgress} allowedRole="teacher" /></Route>
-              <Route path="/teacher/recordings"><ProtectedRoute component={TeacherRecordings} allowedRole="teacher" /></Route>
-              <Route path="/teacher/attendance"><ProtectedRoute component={TeacherAttendance} allowedRole="teacher" /></Route>
-              <Route path="/teacher/fees"><ProtectedRoute component={TeacherFees} allowedRole="teacher" /></Route>
-              <Route path="/teacher/test-results"><ProtectedRoute component={TeacherTestResults} allowedRole="teacher" /></Route>
+              <Route path="/teacher/topics/:id">
+                <RoleGuard component={TeacherTopicDetails} allowedRole="teacher" />
+              </Route>
+              <Route path="/teacher/topics">
+                <RoleGuard component={TeacherTopics} allowedRole="teacher" />
+              </Route>
+              <Route path="/teacher/progress">
+                <RoleGuard component={TeacherProgress} allowedRole="teacher" />
+              </Route>
+              <Route path="/teacher/recordings">
+                <RoleGuard component={TeacherRecordings} allowedRole="teacher" />
+              </Route>
+              <Route path="/teacher/attendance">
+                <RoleGuard component={TeacherAttendance} allowedRole="teacher" />
+              </Route>
+              <Route path="/teacher/fees">
+                <RoleGuard component={TeacherFees} allowedRole="teacher" />
+              </Route>
+              <Route path="/teacher/test-results">
+                <RoleGuard component={TeacherTestResults} allowedRole="teacher" />
+              </Route>
 
-              <Route path="/student/today"><ProtectedRoute component={StudentToday} allowedRole="student" /></Route>
-              <Route path="/student/progress"><ProtectedRoute component={StudentProgress} allowedRole="student" /></Route>
-              <Route path="/student/test"><ProtectedRoute component={StudentTest} allowedRole="student" /></Route>
+              {/* Student routes */}
+              <Route path="/student/today">
+                <RoleGuard component={StudentToday} allowedRole="student" />
+              </Route>
+              <Route path="/student/progress">
+                <RoleGuard component={StudentProgress} allowedRole="student" />
+              </Route>
+              <Route path="/student/test">
+                <RoleGuard component={StudentTest} allowedRole="student" />
+              </Route>
 
-              <Route path="/parent/dashboard"><ProtectedRoute component={ParentDashboard} allowedRole="parent" /></Route>
+              {/* Parent routes */}
+              <Route path="/parent/dashboard">
+                <RoleGuard component={ParentDashboard} allowedRole="parent" />
+              </Route>
 
               <Route component={NotFound} />
             </Switch>
@@ -110,21 +141,52 @@ function Layout() {
   );
 }
 
-function Router() {
-  return (
-    <Switch>
-      <Route path="/login" component={Login} />
-      <Route path="/.*" component={Layout} />
-    </Switch>
-  );
+// ─── Top-level auth gate ──────────────────────────────────────────────────────
+
+/**
+ * Single component that owns ALL routing decisions based on auth state.
+ * Avoids any ambiguous nested-Switch matching issues.
+ */
+function AuthGate() {
+  const { user, isLoading, isAuthenticated } = useAuth();
+  const [location] = useLocation();
+
+  // While checking auth, show spinner for everything except /login
+  if (isLoading) {
+    return <FullPageSpinner />;
+  }
+
+  // ── Not logged in ────────────────────────────────────────────────────────
+  if (!isAuthenticated) {
+    // Allow the login page; redirect everything else to /login
+    if (location === "/login") return <Login />;
+    return <Redirect to="/login" />;
+  }
+
+  // ── Logged in ────────────────────────────────────────────────────────────
+
+  // /login while authenticated → go to role home
+  if (location === "/login") {
+    return <Redirect to={roleHome(user?.role)} />;
+  }
+
+  // Root path → go to role home
+  if (location === "/" || location === "") {
+    return <Redirect to={roleHome(user?.role)} />;
+  }
+
+  // All other paths → render the app shell with protected routes
+  return <AppShell />;
 }
+
+// ─── App ──────────────────────────────────────────────────────────────────────
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
+          <AuthGate />
         </WouterRouter>
         <Toaster />
       </TooltipProvider>
