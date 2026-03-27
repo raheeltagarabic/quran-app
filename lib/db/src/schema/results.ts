@@ -1,4 +1,4 @@
-import { pgTable, integer, timestamp, real } from "drizzle-orm/pg-core";
+import { pgTable, integer, timestamp, real, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { studentsTable } from "./students";
@@ -10,6 +10,7 @@ export const resultsTable = pgTable("results", {
   topicId: integer("topic_id").notNull().references(() => topicsTable.id, { onDelete: "cascade" }),
   score: real("score").notNull(),
   totalQuestions: integer("total_questions").notNull(),
+  answers: jsonb("answers"),
   date: timestamp("date", { withTimezone: true }).notNull().defaultNow(),
 });
 

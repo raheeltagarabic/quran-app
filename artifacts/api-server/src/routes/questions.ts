@@ -1,10 +1,35 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { questionsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { CreateQuestionBody, UpdateQuestionBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
+
+// ─── GET 10 random questions for a topic (student test mode) ─────────────────
+router.get("/topics/:id/questions/random", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const topicId = parseInt(req.params.id);
+  if (isNaN(topicId)) {
+    res.status(400).json({ error: "Invalid topic id" });
+    return;
+  }
+  try {
+    const questions = await db
+      .select()
+      .from(questionsTable)
+      .where(eq(questionsTable.topicId, topicId))
+      .orderBy(sql`RANDOM()`)
+      .limit(10);
+    res.json(questions);
+  } catch (err) {
+    req.log.error({ err }, "Error fetching random questions");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 router.post("/questions", async (req, res) => {
   if (!req.isAuthenticated()) {

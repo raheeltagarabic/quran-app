@@ -1,4 +1,4 @@
-import { BookOpen, Calendar, CalendarCheck, GraduationCap, LayoutDashboard, LogOut, Mic, Target, Users, Wallet } from "lucide-react";
+import { BookOpen, Calendar, CalendarCheck, ClipboardList, GraduationCap, LayoutDashboard, LogOut, Mic, Target, Users, Wallet } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@workspace/replit-auth-web";
 import {
@@ -24,6 +24,7 @@ export function AppSidebar() {
   const teacherItems = [
     { title: "Students", url: "/teacher/students", icon: Users },
     { title: "Topics", url: "/teacher/topics", icon: BookOpen },
+    { title: "Test Results", url: "/teacher/test-results", icon: ClipboardList },
     { title: "Attendance", url: "/teacher/attendance", icon: CalendarCheck },
     { title: "Fees", url: "/teacher/fees", icon: Wallet },
     { title: "Progress", url: "/teacher/progress", icon: Target },
@@ -32,6 +33,7 @@ export function AppSidebar() {
 
   const studentItems = [
     { title: "Today's Class", url: "/student/today", icon: Calendar },
+    { title: "Take a Test", url: "/student/test", icon: ClipboardList },
     { title: "My Progress", url: "/student/progress", icon: Target },
   ];
 

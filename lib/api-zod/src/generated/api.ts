@@ -374,6 +374,11 @@ export const SubmitTestResultBody = zod.object({
   topicId: zod.number(),
   score: zod.number(),
   totalQuestions: zod.number(),
+  answers: zod.array(zod.object({
+    questionId: zod.number(),
+    selectedAnswer: zod.string(),
+    correct: zod.boolean(),
+  })).optional(),
 });
 
 /**

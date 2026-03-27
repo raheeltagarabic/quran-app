@@ -1,0 +1,140 @@
+Build a complete MCQ Test System for students.
+
+========================
+DATABASE REQUIREMENTS
+========================
+
+1. questions table (already exists or create if missing):
+- id
+- topic_id
+- question_text
+- option_a
+- option_b
+- option_c
+- option_d
+- correct_answer (A/B/C/D)
+
+2. results table:
+- id
+- student_id
+- topic_id
+- score (integer out of 10)
+- total_questions (default 10)
+- answers JSON (store student answers)
+- created_at timestamp
+
+========================
+QUESTION BANK
+========================
+
+- Each topic should have 50+ questions
+- Questions are linked via topic_id
+- Teacher can add/edit/delete questions (simple admin UI optional)
+
+========================
+TEST GENERATION
+========================
+
+When student clicks "Start Test":
+
+1. Fetch 10 RANDOM questions:
+   SELECT * FROM questions 
+   WHERE topic_id = selectedTopic
+   ORDER BY RANDOM()
+   LIMIT 10
+
+2. Store test session in frontend state
+
+========================
+TEST UI (STUDENT SIDE)
+========================
+
+Create a Test Page:
+
+Features:
+- Show 1 question at a time OR full list (your choice)
+- Show options (A, B, C, D)
+- Radio button selection
+- Show question number (1/10)
+
+========================
+TIMER
+========================
+
+- Start 15-minute countdown when test starts
+- Show timer on top
+- If timer ends → auto submit
+
+========================
+SUBMISSION
+========================
+
+On submit:
+
+1. Compare answers:
+- Loop through questions
+- Count correct answers
+
+2. Calculate score:
+score = correctAnswers
+
+3. Save result:
+INSERT INTO results (student_id, topic_id, score, total_questions, answers)
+
+========================
+RESULT VIEW
+========================
+
+After submission:
+
+- Show:
+  Score: X / 10
+  Percentage
+- Show correct vs wrong answers
+- Highlight correct answers
+
+========================
+TEACHER VIEW
+========================
+
+In Teacher Dashboard:
+
+- Add "Test Results" section
+- Filter by student
+- Show:
+  - Topic
+  - Score
+  - Date
+- Optional: Click to view detailed answers
+
+========================
+RULES
+========================
+
+- Each test = 10 questions
+- Time limit = 15 minutes
+- Random questions every time
+- Save all attempts (no overwrite)
+
+========================
+UI IMPROVEMENTS
+========================
+
+- Disable submit until at least 1 answer selected
+- Show confirmation before submit
+- Show loading spinner on submit
+
+========================
+GOAL
+========================
+
+Student can:
+→ Start test
+→ Answer questions
+→ Submit
+→ See result
+
+Teacher can:
+→ View all results
+
+System should be fast, simple, and reliable.

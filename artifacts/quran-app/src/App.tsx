@@ -17,8 +17,10 @@ import TeacherProgress from "@/pages/teacher/progress";
 import TeacherRecordings from "@/pages/teacher/recordings";
 import TeacherAttendance from "@/pages/teacher/attendance";
 import TeacherFees from "@/pages/teacher/fees";
+import TeacherTestResults from "@/pages/teacher/test-results";
 
 import StudentToday from "@/pages/student/today";
+import StudentTest from "@/pages/student/test";
 import ParentDashboard from "@/pages/parent/dashboard";
 import StudentProgress from "@/pages/student/progress";
 
@@ -91,9 +93,11 @@ function Layout() {
               <Route path="/teacher/recordings"><ProtectedRoute component={TeacherRecordings} allowedRole="teacher" /></Route>
               <Route path="/teacher/attendance"><ProtectedRoute component={TeacherAttendance} allowedRole="teacher" /></Route>
               <Route path="/teacher/fees"><ProtectedRoute component={TeacherFees} allowedRole="teacher" /></Route>
+              <Route path="/teacher/test-results"><ProtectedRoute component={TeacherTestResults} allowedRole="teacher" /></Route>
 
               <Route path="/student/today"><ProtectedRoute component={StudentToday} allowedRole="student" /></Route>
               <Route path="/student/progress"><ProtectedRoute component={StudentProgress} allowedRole="student" /></Route>
+              <Route path="/student/test"><ProtectedRoute component={StudentTest} allowedRole="student" /></Route>
 
               <Route path="/parent/dashboard"><ProtectedRoute component={ParentDashboard} allowedRole="parent" /></Route>
 
