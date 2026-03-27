@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { 
   useGetMyStudentProfile, 
   useListTopics, 
@@ -11,7 +11,7 @@ import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Video, Mic, SquareSquare, CheckCircle2, ChevronRight, BookOpen, Target, Moon } from "lucide-react";
+import { Video, Mic, SquareSquare, CheckCircle2, ChevronRight, BookOpen, Target, Moon, ChevronLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -124,20 +124,86 @@ export default function StudentToday() {
   );
 }
 
+// ─── Lesson Viewer (shared) ───────────────────────────────────────────────────
+
+function LessonViewer({ initialLesson, badge }: { initialLesson: number; badge: ReactNode }) {
+  const [lesson, setLesson] = useState(initialLesson);
+  const [imgError, setImgError] = useState(false);
+
+  const handlePrev = () => {
+    setLesson(l => l - 1);
+    setImgError(false);
+  };
+  const handleNext = () => {
+    setLesson(l => l + 1);
+    setImgError(false);
+  };
+
+  return (
+    <Card className="md:col-span-2 rounded-3xl shadow-lg border-border/50 overflow-hidden">
+      <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="font-display text-xl">Lesson {lesson}</CardTitle>
+          {badge}
+        </div>
+      </CardHeader>
+      <CardContent className="p-6 space-y-4">
+        {/* Image */}
+        <div className="aspect-[3/4] bg-muted/30 rounded-2xl border border-dashed border-border/60 flex items-center justify-center relative overflow-hidden">
+          {!imgError ? (
+            <img
+              key={lesson}
+              src={`/lessons/page_${lesson}.png`}
+              alt={`Qaida Page ${lesson}`}
+              className="absolute inset-0 w-full h-full object-contain"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <div className="text-center p-8">
+              <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                <BookOpen className="w-10 h-10 text-muted-foreground" />
+              </div>
+              <p className="font-display text-xl font-bold text-muted-foreground mb-1">Lesson not available</p>
+              <p className="text-sm text-muted-foreground">No image found for page {lesson}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Navigation */}
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            variant="outline"
+            className="flex-1 rounded-xl"
+            onClick={handlePrev}
+            disabled={lesson <= 1}
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+          </Button>
+          <span className="text-sm font-semibold text-muted-foreground tabular-nums w-16 text-center">
+            Page {lesson}
+          </span>
+          <Button
+            variant="outline"
+            className="flex-1 rounded-xl"
+            onClick={handleNext}
+          >
+            Next <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Qaida View ──────────────────────────────────────────────────────────────
 
 function QaidaView({ profile }: { profile: any }) {
   const { isRecording, startRecording, stopRecording, audioBlob, clearAudio, recordingTime } = useAudioRecorder();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [imgError, setImgError] = useState(false);
 
   const uploadRecording = useUploadRecording();
   const createRecording = useCreateRecording();
-
-  const lessonImgSrc = imgError
-    ? null
-    : `/lessons/page_${profile.currentLesson}.png`;
 
   const handleUpload = async () => {
     if (!audioBlob) return;
@@ -160,37 +226,14 @@ function QaidaView({ profile }: { profile: any }) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {/* Lesson Image */}
-      <Card className="md:col-span-2 rounded-3xl shadow-lg border-border/50 overflow-hidden">
-        <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="font-display text-xl">Lesson {profile.currentLesson}</CardTitle>
-            <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5">
-              <BookOpen className="w-3 h-3 mr-1" /> Qaida Mode
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="aspect-[3/4] bg-muted/30 rounded-2xl border border-dashed border-border/60 flex items-center justify-center relative overflow-hidden">
-            {lessonImgSrc ? (
-              <img
-                src={lessonImgSrc}
-                alt={`Qaida Page ${profile.currentLesson}`}
-                className="absolute inset-0 w-full h-full object-contain"
-                onError={() => setImgError(true)}
-              />
-            ) : (
-              <div className="text-center p-8">
-                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <BookOpen className="w-10 h-10 text-primary" />
-                </div>
-                <p className="font-display text-2xl text-primary font-bold mb-1">Page {profile.currentLesson}</p>
-                <p className="text-sm text-muted-foreground">Open your physical Qaida book to this page</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <LessonViewer
+        initialLesson={profile.currentLesson}
+        badge={
+          <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5">
+            <BookOpen className="w-3 h-3 mr-1" /> Qaida Mode
+          </Badge>
+        }
+      />
 
       {/* Side Panel */}
       <div className="space-y-6">
@@ -274,44 +317,18 @@ function QaidaView({ profile }: { profile: any }) {
 // ─── Rest Day View ───────────────────────────────────────────────────────────
 
 function RestDayView({ profile }: { profile: any }) {
-  const [imgError, setImgError] = useState(false);
   const [practicing, setPracticing] = useState(false);
-
-  const lessonImgSrc = imgError ? null : `/lessons/page_${profile.currentLesson}.png`;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {/* Lesson Image */}
-      <Card className="md:col-span-2 rounded-3xl shadow-lg border-border/50 overflow-hidden">
-        <CardHeader className="bg-muted/10 border-b border-border/50 pb-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="font-display text-xl">Lesson {profile.currentLesson}</CardTitle>
-            <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30 bg-muted/20">
-              <BookOpen className="w-3 h-3 mr-1" /> Revision
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="aspect-[3/4] bg-muted/30 rounded-2xl border border-dashed border-border/60 flex items-center justify-center relative overflow-hidden">
-            {lessonImgSrc ? (
-              <img
-                src={lessonImgSrc}
-                alt={`Qaida Page ${profile.currentLesson}`}
-                className="absolute inset-0 w-full h-full object-contain"
-                onError={() => setImgError(true)}
-              />
-            ) : (
-              <div className="text-center p-8">
-                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <BookOpen className="w-10 h-10 text-primary" />
-                </div>
-                <p className="font-display text-2xl text-primary font-bold mb-1">Page {profile.currentLesson}</p>
-                <p className="text-sm text-muted-foreground">Open your physical Qaida book to this page</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <LessonViewer
+        initialLesson={profile.currentLesson}
+        badge={
+          <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30 bg-muted/20">
+            <BookOpen className="w-3 h-3 mr-1" /> Revision
+          </Badge>
+        }
+      />
 
       {/* Side Panel */}
       <div className="space-y-6">
