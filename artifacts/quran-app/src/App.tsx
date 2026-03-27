@@ -16,6 +16,7 @@ import TeacherTopicDetails from "@/pages/teacher/topic-details";
 import TeacherProgress from "@/pages/teacher/progress";
 import TeacherRecordings from "@/pages/teacher/recordings";
 import TeacherAttendance from "@/pages/teacher/attendance";
+import TeacherFees from "@/pages/teacher/fees";
 
 import StudentToday from "@/pages/student/today";
 import StudentProgress from "@/pages/student/progress";
@@ -80,6 +81,7 @@ function Layout() {
               <Route path="/teacher/progress"><ProtectedRoute component={TeacherProgress} allowedRole="teacher" /></Route>
               <Route path="/teacher/recordings"><ProtectedRoute component={TeacherRecordings} allowedRole="teacher" /></Route>
               <Route path="/teacher/attendance"><ProtectedRoute component={TeacherAttendance} allowedRole="teacher" /></Route>
+              <Route path="/teacher/fees"><ProtectedRoute component={TeacherFees} allowedRole="teacher" /></Route>
 
               <Route path="/student/today"><ProtectedRoute component={StudentToday} allowedRole="student" /></Route>
               <Route path="/student/progress"><ProtectedRoute component={StudentProgress} allowedRole="student" /></Route>
