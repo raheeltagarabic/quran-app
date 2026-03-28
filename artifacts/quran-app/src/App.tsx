@@ -1,4 +1,10 @@
-import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
+import {
+  Switch,
+  Route,
+  Router as WouterRouter,
+  Redirect,
+  useLocation,
+} from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -49,7 +55,6 @@ function roleHome(role: string | null | undefined): string {
   if (role === "parent") return "/parent/dashboard";
   return "/student/today";
 }
-
 // ─── Route guard ─────────────────────────────────────────────────────────────
 
 /**
@@ -81,7 +86,9 @@ function RoleGuard({
 
 function AppShell() {
   return (
-    <SidebarProvider style={{ "--sidebar-width": "18rem" } as React.CSSProperties}>
+    <SidebarProvider
+      style={{ "--sidebar-width": "18rem" } as React.CSSProperties}
+    >
       <div className="flex h-screen w-full overflow-hidden bg-background">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
@@ -95,7 +102,10 @@ function AppShell() {
                 <RoleGuard component={TeacherStudents} allowedRole="teacher" />
               </Route>
               <Route path="/teacher/topics/:id">
-                <RoleGuard component={TeacherTopicDetails} allowedRole="teacher" />
+                <RoleGuard
+                  component={TeacherTopicDetails}
+                  allowedRole="teacher"
+                />
               </Route>
               <Route path="/teacher/topics">
                 <RoleGuard component={TeacherTopics} allowedRole="teacher" />
@@ -104,16 +114,25 @@ function AppShell() {
                 <RoleGuard component={TeacherProgress} allowedRole="teacher" />
               </Route>
               <Route path="/teacher/recordings">
-                <RoleGuard component={TeacherRecordings} allowedRole="teacher" />
+                <RoleGuard
+                  component={TeacherRecordings}
+                  allowedRole="teacher"
+                />
               </Route>
               <Route path="/teacher/attendance">
-                <RoleGuard component={TeacherAttendance} allowedRole="teacher" />
+                <RoleGuard
+                  component={TeacherAttendance}
+                  allowedRole="teacher"
+                />
               </Route>
               <Route path="/teacher/fees">
                 <RoleGuard component={TeacherFees} allowedRole="teacher" />
               </Route>
               <Route path="/teacher/test-results">
-                <RoleGuard component={TeacherTestResults} allowedRole="teacher" />
+                <RoleGuard
+                  component={TeacherTestResults}
+                  allowedRole="teacher"
+                />
               </Route>
 
               {/* Student routes */}
