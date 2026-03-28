@@ -24,6 +24,7 @@ import TeacherRecordings from "@/pages/teacher/recordings";
 import TeacherAttendance from "@/pages/teacher/attendance";
 import TeacherFees from "@/pages/teacher/fees";
 import TeacherTestResults from "@/pages/teacher/test-results";
+import TeacherUsers from "@/pages/teacher/users";
 
 import StudentToday from "@/pages/student/today";
 import StudentTest from "@/pages/student/test";
@@ -133,6 +134,9 @@ function AppShell() {
                   component={TeacherTestResults}
                   allowedRole="teacher"
                 />
+              </Route>
+              <Route path="/teacher/users">
+                <RoleGuard component={TeacherUsers} allowedRole="teacher" />
               </Route>
 
               {/* Student routes */}
