@@ -6,7 +6,8 @@ import {
   ExchangeMobileAuthorizationCodeResponse,
   LogoutMobileSessionResponse,
 } from "@workspace/api-zod";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, studentsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import {
   clearSession,
   getOidcConfig,
@@ -84,12 +85,48 @@ async function upsertUser(claims: Record<string, unknown>) {
 
 router.get("/auth/user", (req: Request, res: Response) => {
   const isAuthenticated = req.isAuthenticated();
-  // Prevent browser from caching the auth response so role changes are always fresh
   res.setHeader("Cache-Control", "no-store, max-age=0");
   res.json({
     user: isAuthenticated ? req.user : null,
     isAuthenticated,
   });
+});
+
+// Primary auth check endpoint — always fresh, auto-provisions student profiles
+router.get("/me", async (req: Request, res: Response) => {
+  res.setHeader("Cache-Control", "no-store, max-age=0");
+
+  if (!req.isAuthenticated() || !req.user) {
+    res.status(401).json({ user: null });
+    return;
+  }
+
+  const user = req.user;
+
+  // Auto-create student profile for users with role="student"
+  if (user.role === "student") {
+    try {
+      const existing = await db
+        .select({ id: studentsTable.id })
+        .from(studentsTable)
+        .where(eq(studentsTable.userId, user.id))
+        .limit(1);
+
+      if (existing.length === 0) {
+        await db.insert(studentsTable).values({
+          userId: user.id,
+          scheduleType: "A",
+          currentLesson: 1,
+          notes: "",
+        });
+      }
+    } catch (err) {
+      // Non-fatal — log and continue, student can still access the app
+      console.error("Auto-create student profile failed:", err);
+    }
+  }
+
+  res.json({ user });
 });
 
 router.get("/login", async (req: Request, res: Response) => {

@@ -4,10 +4,10 @@ import type { AuthUser } from "@workspace/api-client-react";
 
 export type { AuthUser };
 
-const AUTH_QUERY_KEY = ["/api/auth/user"];
+const AUTH_QUERY_KEY = ["/api/me"];
 
 async function fetchUser(): Promise<AuthUser | null> {
-  const res = await fetch("/api/auth/user", { credentials: "include" });
+  const res = await fetch("/api/me", { credentials: "include" });
   if (!res.ok) return null;
   const data = (await res.json()) as { user: AuthUser | null };
   return data.user ?? null;
