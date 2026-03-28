@@ -8,6 +8,10 @@ import { authMiddleware } from "./middlewares/authMiddleware";
 
 const app: Express = express();
 
+app.get("/", (req, res) => {
+  res.send("API is running 🚀");
+});
+
 app.use(
   pinoHttp({
     logger,
