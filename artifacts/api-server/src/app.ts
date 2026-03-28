@@ -1,3 +1,4 @@
+import simpleAuth from "./routes/simpleAuth";
 import express, { type Express } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -35,7 +36,10 @@ app.use(cors({ credentials: true, origin: true }));
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use("/api/simple-auth", simpleAuth);
 app.use(authMiddleware);
+app.use(router);
+
 
 // Prevent all API responses from being cached by browsers or CDNs
 app.use("/api", (_req, res, next) => {
