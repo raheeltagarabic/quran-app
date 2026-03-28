@@ -17,8 +17,10 @@ export function useAuth() {
   const { data: user = null, isLoading } = useQuery<AuthUser | null>({
     queryKey: AUTH_QUERY_KEY,
     queryFn: fetchUser,
-    staleTime: 0,        // Always fetch fresh on mount
-    gcTime: 60_000,      // Keep in cache for 60s between page renders
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
     retry: false,
   });
 

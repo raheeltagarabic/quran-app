@@ -24,6 +24,14 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
 
+  // Confirm which database is in use (host only, never log full URL with credentials)
+  try {
+    const url = new URL(process.env["DATABASE_URL"]!);
+    logger.info({ host: url.hostname, database: url.pathname.slice(1) }, "DB connected");
+  } catch {
+    logger.info("DB connected: DATABASE_URL is set");
+  }
+
   seedQuestions(msg => logger.info(msg)).catch(e =>
     logger.error({ err: e }, "Seed error"),
   );

@@ -41,7 +41,7 @@ function RoleBadge({ role }: { role: string | null }) {
 }
 
 async function fetchUsers(): Promise<AppUser[]> {
-  const res = await fetch("/api/users", { credentials: "include" });
+  const res = await fetch("/api/users", { credentials: "include", cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch users");
   return res.json() as Promise<AppUser[]>;
 }
@@ -50,6 +50,7 @@ async function promoteUser(body: { email: string; role: Role }) {
   const res = await fetch("/api/users/promote", {
     method: "POST",
     credentials: "include",
+    cache: "no-store",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
