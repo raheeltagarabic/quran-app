@@ -20,7 +20,7 @@
     "multer": "^2.1.1",
     "openid-client": "^6.8.2",
     "pino": "^9",
-    "pino-http": "^10"
+    "pino-http": "^10",
     "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
