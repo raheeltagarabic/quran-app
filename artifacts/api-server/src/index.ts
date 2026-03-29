@@ -29,7 +29,5 @@ app.listen(port, (err) => {
     logger.info("DB connected: DATABASE_URL is set");
   }
 
-  seedQuestions(msg => logger.info(msg)).catch(e =>
-    logger.error({ err: e }, "Seed error"),
-  );
-});
+  seedQuestions(msg => logger.info(msg))
+  .catch(e => logger.error({ err: e }, "Seed error"));
