@@ -1,4 +1,5 @@
 import simpleAuth from "./routes/simpleAuth";
+import protectedRoutes from "./routes/protected";
 import express, { type Express } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
