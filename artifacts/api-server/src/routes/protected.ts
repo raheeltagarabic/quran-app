@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { authMiddleware } from "../middlewares/auth";
+import { jwtAuth } from "../middlewares/jwtAuth";
 
 const router = Router();
 
-router.get("/", authMiddleware, (req, res) => {
+router.get("/", jwtAuth, (req, res) => {
   res.json({
     message: "You are authorized ✅",
     user: req.user
