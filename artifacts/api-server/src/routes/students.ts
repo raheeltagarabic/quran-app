@@ -1,3 +1,4 @@
+import { authMiddleware } from "../middlewares/auth";
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { studentsTable, usersTable } from "@workspace/db";
