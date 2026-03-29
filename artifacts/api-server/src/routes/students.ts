@@ -56,11 +56,7 @@ async function resolveParentId(
 }
 
 // ─── GET /students ────────────────────────────────────────────────────────────
-router.get("/students", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.get("/students/me", authMiddleware, async (req, res) => {       
   try {
     const students = await db
       .select({
@@ -272,21 +268,19 @@ router.put("/students/:id", async (req, res) => {
 });
 
 // ─── DELETE /students/:id ─────────────────────────────────────────────────────
-router.delete("/students/:id", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+router.delete("/students/:id", authMiddleware, async (req, res) => {
   const id = parseInt(req.params.id);
+
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
+
   try {
     await db.delete(studentsTable).where(eq(studentsTable.id, id));
+
     res.json({ success: true });
   } catch (err) {
-    req.log.error({ err }, "Error deleting student");
     res.status(500).json({ error: "Internal server error" });
   }
 });
