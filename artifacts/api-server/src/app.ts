@@ -38,6 +38,7 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/api/simple-auth", simpleAuth);
+app.use("/api/protected", protectedRoutes);
 app.use(authMiddleware);
 app.use(router);
 
