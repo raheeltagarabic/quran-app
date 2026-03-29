@@ -10,11 +10,7 @@ if (!rawPort) {
   );
 }
 
-const port = Number(rawPort);
-
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
+const port = Number(process.env.PORT) || 3000;
 
 app.listen(port, (err) => {
   if (err) {
@@ -23,6 +19,7 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+  });
 
   // Confirm which database is in use (host only, never log full URL with credentials)
   try {
